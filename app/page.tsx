@@ -231,6 +231,14 @@ export default function Home() {
               Touchscreen Kiosk — tap to order
             </p>
           </div>
+          {step === "select" && cart.length > 0 && (
+            <div className="rounded-2xl bg-white/15 px-5 py-3 text-right ring-1 ring-white/20">
+              <p className="text-sm font-semibold leading-tight text-indigo-100">Order</p>
+              <p className="text-lg font-bold leading-tight text-white">
+                {cart.length} item{cart.length === 1 ? "" : "s"} · {formatPeso(total)}
+              </p>
+            </div>
+          )}
         </div>
       </header>
 
