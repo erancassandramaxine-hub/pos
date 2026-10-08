@@ -11,14 +11,16 @@ const QR_SIZE = 21;
 
 /** Deterministic demo QR code drawn as an SVG grid (decorative placeholder only). */
 function DemoQrCode({ size = 240 }: { size?: number }) {
-  const cells = useMemo(() => {
-    // Simple deterministic PRNG so the pattern stays stable between renders.
-    let seed = 20261008;
-    const rand = () => {
-      seed = (seed * 1103515245 + 12345) % 2147483648;
-      return seed / 2147483648;
+  const filled = useMemo(() => {
+    // Deterministic hash per cell index so the pattern stays stable between renders.
+    const hash = (index: number) => {
+      const x = Math.sin(index * 127.1 + 311.7) * 43758.5453;
+      return x - Math.floor(x);
     };
-    const grid = Array.from({ length: QR_SIZE * QR_SIZE }, () => rand() < 0.45);
+    const cells = new Set<number>();
+    for (let i = 0; i < QR_SIZE * QR_SIZE; i++) {
+      if (hash(i) < 0.45) cells.add(i);
+    }
 
     // Draw the three QR finder patterns (7x7 squares with 3x3 centers).
     const drawFinder = (row: number, col: number) => {
@@ -26,14 +28,14 @@ function DemoQrCode({ size = 240 }: { size?: number }) {
         for (let c = 0; c < 7; c++) {
           const border = r === 0 || r === 6 || c === 0 || c === 6;
           const center = r >= 2 && r <= 4 && c >= 2 && c <= 4;
-          grid[(row + r) * QR_SIZE + (col + c)] = border || center;
+          if (border || center) cells.add((row + r) * QR_SIZE + (col + c));
         }
       }
     };
     drawFinder(0, 0);
     drawFinder(0, QR_SIZE - 7);
     drawFinder(QR_SIZE - 7, 0);
-    return grid;
+    return cells;
   }, []);
 
   const cell = size / QR_SIZE;
@@ -46,8 +48,8 @@ function DemoQrCode({ size = 240 }: { size?: number }) {
       aria-label="Demo QR code placeholder"
       className="rounded-2xl bg-white p-3 ring-2 ring-slate-200"
     >
-      {cells.map((filled, index) =>
-        filled ? (
+      {Array.from({ length: QR_SIZE * QR_SIZE }, (_, index) =>
+        filled.has(index) ? (
           <rect
             key={index}
             x={(index % QR_SIZE) * cell}

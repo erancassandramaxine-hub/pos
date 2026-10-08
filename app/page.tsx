@@ -141,6 +141,11 @@ export default function Home() {
     };
   }, []);
 
+  const total = cart.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0
+  );
+
   // Simulate the payment gateway while the processing screen is shown.
   useEffect(() => {
     if (step !== "processing") return;
@@ -170,11 +175,6 @@ export default function Home() {
     }, PROCESSING_DELAY_MS);
     return () => clearTimeout(timer);
   }, [step, methodId, paid, total, cart, showToast]);
-
-  const total = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
@@ -316,12 +316,16 @@ export default function Home() {
             onBack={backToProducts}
             onContinue={() => setStep("payment")}
           />
-        ) : methodId === null ? (
-          <PaymentMethod total={total} onSelect={selectMethod} onBack={backToSummary} />
-        ) : methodId === "cash" ? (
-          <CashPayment total={total} onConfirm={confirmCashPayment} onBack={() => setMethodId(null)} />
-        ) : methodId === "qr" ? (
-          <QRPayment total={total} onConfirm={confirmCashlessPayment} onBack={() => setMethodId(null)} />
+        ) : step === "payment" ? (
+          methodId === null ? (
+            <PaymentMethod total={total} onSelect={selectMethod} onBack={backToSummary} />
+          ) : methodId === "cash" ? (
+            <CashPayment total={total} onConfirm={confirmCashPayment} onBack={() => setMethodId(null)} />
+          ) : methodId === "qr" ? (
+            <QRPayment total={total} onConfirm={confirmCashlessPayment} onBack={() => setMethodId(null)} />
+          ) : (
+            <CardPayment total={total} onConfirm={confirmCashlessPayment} onBack={() => setMethodId(null)} />
+          )
         ) : step === "processing" ? (
           <PaymentProcessing
             methodName={
