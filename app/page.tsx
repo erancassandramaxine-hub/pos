@@ -256,14 +256,19 @@ export default function Home() {
               />
               {cart.length > 0 && (
                 <>
-                  <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                    <div className="flex justify-between text-lg font-semibold text-slate-600">
-                      <span>Subtotal</span>
-                      <span>{formatPeso(total)}</span>
+                  <div className="mt-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-semibold text-slate-600">Subtotal</span>
+                      <span className="text-lg font-bold text-slate-700">{formatPeso(total)}</span>
                     </div>
-                    <div className="flex justify-between text-2xl font-extrabold text-slate-900">
-                      <span>Total</span>
-                      <span>{formatPeso(total)}</span>
+                    <div className="my-3 border-t-2 border-dashed border-slate-200" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-extrabold uppercase tracking-wide text-slate-900">
+                        Total
+                      </span>
+                      <span className="text-3xl font-extrabold text-indigo-600">
+                        {formatPeso(total)}
+                      </span>
                     </div>
                   </div>
                   <button
