@@ -288,6 +288,8 @@ export default function Home() {
             total={total}
             onBack={backToProducts}
             onContinue={() => setStep("payment")}
+            onIncrease={(id) => changeQuantity(id, 1)}
+            onDecrease={(id) => changeQuantity(id, -1)}
           />
         ) : step === "payment" ? (
           methodId === null ? (
