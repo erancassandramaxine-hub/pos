@@ -6,13 +6,25 @@ import Cart from "@/components/Cart";
 import CashPayment from "@/components/CashPayment";
 import OrderSummary from "@/components/OrderSummary";
 import PaymentMethod from "@/components/PaymentMethod";
+import PaymentProcessing from "@/components/PaymentProcessing";
+import PaymentSuccess from "@/components/PaymentSuccess";
 import ProductGrid from "@/components/ProductGrid";
 import QRPayment from "@/components/QRPayment";
-import { PRODUCTS } from "@/lib/products";
-import { formatPeso } from "@/lib/transaction";
-import type { CartItem, PaymentMethodId, Product, Step, ToastState } from "@/lib/types";
+import { PAYMENT_METHODS, PRODUCTS } from "@/lib/products";
+import { formatPeso, formatReceiptDate, generateTransactionNumber } from "@/lib/transaction";
+import type {
+  CartItem,
+  PaymentMethodId,
+  Product,
+  ReceiptData,
+  Step,
+  ToastState,
+} from "@/lib/types";
 
 const STEP_LABELS = ["Item Selection", "Order Summary", "Payment", "Complete"];
+
+/** How long the simulated payment gateway takes. */
+const PROCESSING_DELAY_MS = 2200;
 
 const STEP_INDEX: Record<Step, number> = {
   select: 0,
@@ -72,10 +84,45 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
+/** Temporary minimal receipt; replaced by the full Receipt component in the next feature branch. */
+function ReceiptPlaceholder({
+  receipt,
+  onNewTransaction,
+}: {
+  receipt: ReceiptData;
+  onNewTransaction: () => void;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-2xl text-center">
+      <h2 className="mb-4 text-3xl font-extrabold text-slate-800">Receipt 🧾</h2>
+      <div className="rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-200">
+        <p className="text-xl font-semibold text-slate-600">Transaction</p>
+        <p className="text-2xl font-extrabold text-slate-900">{receipt.transactionNumber}</p>
+        <p className="mt-4 text-3xl font-extrabold text-slate-900">{formatPeso(receipt.total)}</p>
+        <p className="mt-2 text-lg font-semibold text-slate-500">
+          {receipt.paymentMethod} · {receipt.status}
+        </p>
+        <p className="mt-4 text-base text-slate-400">
+          Full receipt layout arrives in the next feature branch.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onNewTransaction}
+        className="select-none touch-manipulation mt-6 h-16 w-full rounded-2xl bg-indigo-600 text-2xl font-bold text-white shadow-lg transition hover:bg-indigo-700 active:scale-95"
+      >
+        Start New Transaction
+      </button>
+    </div>
+  );
+}
+
 export default function Home() {
   const [step, setStep] = useState<Step>("select");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [methodId, setMethodId] = useState<PaymentMethodId | null>(null);
+  const [paid, setPaid] = useState<{ amount: number; change: number } | null>(null);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,6 +140,36 @@ export default function Home() {
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, []);
+
+  // Simulate the payment gateway while the processing screen is shown.
+  useEffect(() => {
+    if (step !== "processing") return;
+    const timer = setTimeout(() => {
+      const method = PAYMENT_METHODS.find((entry) => entry.id === methodId);
+      const { date, time } = formatReceiptDate();
+      const amountPaid = paid?.amount ?? total;
+      const change = paid?.change ?? 0;
+      setReceipt({
+        transactionNumber: generateTransactionNumber(),
+        date,
+        time,
+        items: cart.map(({ product, quantity }) => ({
+          name: product.name,
+          unitPrice: product.price,
+          quantity,
+          lineTotal: product.price * quantity,
+        })),
+        total,
+        paymentMethod: method?.name ?? "Unknown",
+        amountPaid,
+        change,
+        status: "PAID",
+      });
+      setStep("success");
+      showToast("Transaction successful!", "success");
+    }, PROCESSING_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [step, methodId, paid, total, cart, showToast]);
 
   const total = cart.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
@@ -158,13 +235,22 @@ export default function Home() {
   };
 
   const confirmCashPayment = (amountPaid: number, change: number) => {
-    // Processing screen is wired up in the next commit.
-    showToast(`Cash accepted: ${formatPeso(amountPaid)} (change ${formatPeso(change)})`, "success");
+    setPaid({ amount: amountPaid, change });
+    setStep("processing");
   };
 
   const confirmCashlessPayment = () => {
-    // Processing screen is wired up in the next commit.
-    showToast("Payment accepted — processing coming soon", "success");
+    setPaid({ amount: total, change: 0 });
+    setStep("processing");
+  };
+
+  const startNewTransaction = () => {
+    setCart([]);
+    setMethodId(null);
+    setPaid(null);
+    setReceipt(null);
+    setStep("select");
+    showToast("New transaction started");
   };
 
   return (
@@ -236,9 +322,27 @@ export default function Home() {
           <CashPayment total={total} onConfirm={confirmCashPayment} onBack={() => setMethodId(null)} />
         ) : methodId === "qr" ? (
           <QRPayment total={total} onConfirm={confirmCashlessPayment} onBack={() => setMethodId(null)} />
-        ) : (
-          <CardPayment total={total} onConfirm={confirmCashlessPayment} onBack={() => setMethodId(null)} />
-        )}
+        ) : step === "processing" ? (
+          <PaymentProcessing
+            methodName={
+              PAYMENT_METHODS.find((entry) => entry.id === methodId)?.name ?? "Payment"
+            }
+            total={total}
+          />
+        ) : step === "success" ? (
+          receipt && (
+            <PaymentSuccess
+              total={receipt.total}
+              amountPaid={receipt.amountPaid}
+              change={receipt.paymentMethod === "Cash" ? receipt.change : null}
+              methodName={receipt.paymentMethod}
+              onViewReceipt={() => setStep("receipt")}
+              onNewTransaction={startNewTransaction}
+            />
+          )
+        ) : receipt ? (
+          <ReceiptPlaceholder receipt={receipt} onNewTransaction={startNewTransaction} />
+        ) : null}
       </main>
 
       {toast && (
