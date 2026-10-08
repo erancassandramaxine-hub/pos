@@ -10,6 +10,7 @@ import PaymentProcessing from "@/components/PaymentProcessing";
 import PaymentSuccess from "@/components/PaymentSuccess";
 import ProductGrid from "@/components/ProductGrid";
 import QRPayment from "@/components/QRPayment";
+import Receipt from "@/components/Receipt";
 import { PAYMENT_METHODS, PRODUCTS } from "@/lib/products";
 import { formatPeso, formatReceiptDate, generateTransactionNumber } from "@/lib/transaction";
 import type {
@@ -81,39 +82,6 @@ function StepIndicator({ current }: { current: number }) {
         );
       })}
     </ol>
-  );
-}
-
-/** Temporary minimal receipt; replaced by the full Receipt component in the next feature branch. */
-function ReceiptPlaceholder({
-  receipt,
-  onNewTransaction,
-}: {
-  receipt: ReceiptData;
-  onNewTransaction: () => void;
-}) {
-  return (
-    <div className="mx-auto w-full max-w-2xl text-center">
-      <h2 className="mb-4 text-3xl font-extrabold text-slate-800">Receipt 🧾</h2>
-      <div className="rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-200">
-        <p className="text-xl font-semibold text-slate-600">Transaction</p>
-        <p className="text-2xl font-extrabold text-slate-900">{receipt.transactionNumber}</p>
-        <p className="mt-4 text-3xl font-extrabold text-slate-900">{formatPeso(receipt.total)}</p>
-        <p className="mt-2 text-lg font-semibold text-slate-500">
-          {receipt.paymentMethod} · {receipt.status}
-        </p>
-        <p className="mt-4 text-base text-slate-400">
-          Full receipt layout arrives in the next feature branch.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onNewTransaction}
-        className="select-none touch-manipulation mt-6 h-16 w-full rounded-2xl bg-indigo-600 text-2xl font-bold text-white shadow-lg transition hover:bg-indigo-700 active:scale-95"
-      >
-        Start New Transaction
-      </button>
-    </div>
   );
 }
 
@@ -345,7 +313,7 @@ export default function Home() {
             />
           )
         ) : receipt ? (
-          <ReceiptPlaceholder receipt={receipt} onNewTransaction={startNewTransaction} />
+          <Receipt receipt={receipt} onNewTransaction={startNewTransaction} />
         ) : null}
       </main>
 
