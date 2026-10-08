@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Cart from "@/components/Cart";
+import OrderSummary from "@/components/OrderSummary";
 import ProductGrid from "@/components/ProductGrid";
 import { PRODUCTS } from "@/lib/products";
 import { formatPeso } from "@/lib/transaction";
-import type { CartItem, Product, ToastState } from "@/lib/types";
+import type { CartItem, Product, Step, ToastState } from "@/lib/types";
 
 const STEP_LABELS = ["Item Selection", "Order Summary", "Payment", "Complete"];
+
+const STEP_INDEX: Record<Step, number> = { select: 0, summary: 1 };
 
 const TOAST_STYLES: Record<ToastState["tone"], string> = {
   success: "bg-emerald-600",
@@ -15,7 +18,51 @@ const TOAST_STYLES: Record<ToastState["tone"], string> = {
   error: "bg-red-600",
 };
 
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <ol className="mb-6 flex items-center justify-center gap-3">
+      {STEP_LABELS.map((label, index) => {
+        const state = index < current ? "done" : index === current ? "active" : "todo";
+        return (
+          <li key={label} className="flex items-center gap-3">
+            <span
+              className={`flex h-9 w-9 items-center justify-center rounded-full text-base font-bold ${
+                state === "active"
+                  ? "bg-indigo-600 text-white"
+                  : state === "done"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-slate-200 text-slate-500"
+              }`}
+            >
+              {state === "done" ? "✓" : index + 1}
+            </span>
+            <span
+              className={`hidden text-sm font-semibold sm:block ${
+                state === "active"
+                  ? "text-indigo-700"
+                  : state === "done"
+                    ? "text-emerald-600"
+                    : "text-slate-400"
+              }`}
+            >
+              {label}
+            </span>
+            {index < STEP_LABELS.length - 1 && (
+              <span
+                className={`h-1 w-8 rounded-full ${
+                  index < current ? "bg-emerald-400" : "bg-slate-300"
+                }`}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export default function Home() {
+  const [step, setStep] = useState<Step>("select");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,6 +124,18 @@ export default function Home() {
     if (item) showToast(`${item.product.name} removed from the order`, "warning");
   };
 
+  const goToSummary = () => {
+    if (cart.length === 0) {
+      showToast("Add at least one product before continuing", "warning");
+      return;
+    }
+    setStep("summary");
+  };
+
+  const backToProducts = () => {
+    setStep("select");
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="bg-indigo-600 px-4 py-4 text-white shadow-lg">
@@ -91,62 +150,58 @@ export default function Home() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-6">
-        <ol className="mb-6 flex items-center justify-center gap-3">
-          {STEP_LABELS.map((label, index) => (
-            <li key={label} className="flex items-center gap-3">
-              <span
-                className={`flex h-9 w-9 items-center justify-center rounded-full text-base font-bold ${
-                  index === 0
-                    ? "bg-indigo-600 text-white"
-                    : "bg-slate-200 text-slate-500"
-                }`}
-              >
-                {index + 1}
-              </span>
-              <span
-                className={`hidden text-sm font-semibold sm:block ${
-                  index === 0 ? "text-indigo-700" : "text-slate-400"
-                }`}
-              >
-                {label}
-              </span>
-              {index < STEP_LABELS.length - 1 && (
-                <span className="h-1 w-8 rounded-full bg-slate-300" />
+        <StepIndicator current={STEP_INDEX[step]} />
+
+        {step === "select" ? (
+          <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
+            <section>
+              <h2 className="mb-4 text-2xl font-extrabold text-slate-800">
+                Tap a product to add it to your order
+              </h2>
+              <ProductGrid products={PRODUCTS} onAdd={addToCart} />
+            </section>
+
+            <aside className="h-fit rounded-3xl bg-slate-100 p-4 ring-1 ring-slate-200 lg:sticky lg:top-4">
+              <h2 className="mb-3 text-2xl font-extrabold text-slate-800">Your Order 🛒</h2>
+              <Cart
+                items={cart}
+                onIncrease={(id) => changeQuantity(id, 1)}
+                onDecrease={(id) => changeQuantity(id, -1)}
+                onRemove={removeFromCart}
+              />
+              {cart.length > 0 && (
+                <>
+                  <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                    <div className="flex justify-between text-lg font-semibold text-slate-600">
+                      <span>Subtotal</span>
+                      <span>{formatPeso(total)}</span>
+                    </div>
+                    <div className="flex justify-between text-2xl font-extrabold text-slate-900">
+                      <span>Total</span>
+                      <span>{formatPeso(total)}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={goToSummary}
+                    className="select-none touch-manipulation mt-4 h-16 w-full rounded-2xl bg-indigo-600 text-2xl font-bold text-white shadow-lg transition hover:bg-indigo-700 active:scale-95"
+                  >
+                    Review Order →
+                  </button>
+                </>
               )}
-            </li>
-          ))}
-        </ol>
-
-        <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
-          <section>
-            <h2 className="mb-4 text-2xl font-extrabold text-slate-800">
-              Tap a product to add it to your order
-            </h2>
-            <ProductGrid products={PRODUCTS} onAdd={addToCart} />
-          </section>
-
-          <aside className="h-fit rounded-3xl bg-slate-100 p-4 ring-1 ring-slate-200 lg:sticky lg:top-4">
-            <h2 className="mb-3 text-2xl font-extrabold text-slate-800">Your Order 🛒</h2>
-            <Cart
-              items={cart}
-              onIncrease={(id) => changeQuantity(id, 1)}
-              onDecrease={(id) => changeQuantity(id, -1)}
-              onRemove={removeFromCart}
-            />
-            {cart.length > 0 && (
-              <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                <div className="flex justify-between text-lg font-semibold text-slate-600">
-                  <span>Subtotal</span>
-                  <span>{formatPeso(total)}</span>
-                </div>
-                <div className="flex justify-between text-2xl font-extrabold text-slate-900">
-                  <span>Total</span>
-                  <span>{formatPeso(total)}</span>
-                </div>
-              </div>
-            )}
-          </aside>
-        </div>
+            </aside>
+          </div>
+        ) : (
+          <OrderSummary
+            items={cart}
+            total={total}
+            onBack={backToProducts}
+            onContinue={() =>
+              showToast("Payment is implemented in the next feature branch", "warning")
+            }
+          />
+        )}
       </main>
 
       {toast && (
