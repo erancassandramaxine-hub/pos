@@ -1,4 +1,4 @@
-import type { Product } from "./types";
+import type { PaymentMethodInfo, Product } from "./types";
 
 /** Static catalog used by the kiosk (no database required). */
 export const PRODUCTS: Product[] = [
@@ -10,4 +10,11 @@ export const PRODUCTS: Product[] = [
   { id: "halo-halo", name: "Halo-Halo", price: 70, emoji: "🍧", category: "Desserts" },
   { id: "iced-tea", name: "Iced Tea", price: 30, emoji: "🧋", category: "Drinks" },
   { id: "coffee", name: "Hot Coffee", price: 50, emoji: "☕", category: "Drinks" },
+];
+
+/** Payment options offered by the kiosk. */
+export const PAYMENT_METHODS: PaymentMethodInfo[] = [
+  { id: "cash", name: "Cash", description: "Pay with bills or coins", emoji: "💵" },
+  { id: "qr", name: "QR Payment", description: "Scan the QR code with your app", emoji: "📱" },
+  { id: "card", name: "Credit/Debit Card", description: "Tap, insert, or swipe your card", emoji: "💳" },
 ];
