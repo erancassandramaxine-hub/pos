@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Cart from "@/components/Cart";
 import ProductGrid from "@/components/ProductGrid";
 import { PRODUCTS } from "@/lib/products";
-import type { Product, ToastState } from "@/lib/types";
+import { formatPeso } from "@/lib/transaction";
+import type { CartItem, Product, ToastState } from "@/lib/types";
 
 const STEP_LABELS = ["Item Selection", "Order Summary", "Payment", "Complete"];
 
@@ -14,6 +16,7 @@ const TOAST_STYLES: Record<ToastState["tone"], string> = {
 };
 
 export default function Home() {
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -32,8 +35,46 @@ export default function Home() {
     };
   }, []);
 
-  const handleAdd = (product: Product) => {
+  const total = cart.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0
+  );
+
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
     showToast(`${product.name} added to the order ✓`);
+  };
+
+  const changeQuantity = (productId: string, delta: number) => {
+    const item = cart.find((entry) => entry.product.id === productId);
+    if (!item) return;
+    if (item.quantity + delta < 1) {
+      showToast("Quantity cannot go below 1", "warning");
+      return;
+    }
+    setCart((prev) =>
+      prev.map((entry) =>
+        entry.product.id === productId
+          ? { ...entry, quantity: entry.quantity + delta }
+          : entry
+      )
+    );
+  };
+
+  const removeFromCart = (productId: string) => {
+    const item = cart.find((entry) => entry.product.id === productId);
+    setCart((prev) => prev.filter((entry) => entry.product.id !== productId));
+    if (item) showToast(`${item.product.name} removed from the order`, "warning");
   };
 
   return (
@@ -76,10 +117,36 @@ export default function Home() {
           ))}
         </ol>
 
-        <h2 className="mb-4 text-2xl font-extrabold text-slate-800">
-          Tap a product to add it to your order
-        </h2>
-        <ProductGrid products={PRODUCTS} onAdd={handleAdd} />
+        <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
+          <section>
+            <h2 className="mb-4 text-2xl font-extrabold text-slate-800">
+              Tap a product to add it to your order
+            </h2>
+            <ProductGrid products={PRODUCTS} onAdd={addToCart} />
+          </section>
+
+          <aside className="h-fit rounded-3xl bg-slate-100 p-4 ring-1 ring-slate-200 lg:sticky lg:top-4">
+            <h2 className="mb-3 text-2xl font-extrabold text-slate-800">Your Order 🛒</h2>
+            <Cart
+              items={cart}
+              onIncrease={(id) => changeQuantity(id, 1)}
+              onDecrease={(id) => changeQuantity(id, -1)}
+              onRemove={removeFromCart}
+            />
+            {cart.length > 0 && (
+              <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                <div className="flex justify-between text-lg font-semibold text-slate-600">
+                  <span>Subtotal</span>
+                  <span>{formatPeso(total)}</span>
+                </div>
+                <div className="flex justify-between text-2xl font-extrabold text-slate-900">
+                  <span>Total</span>
+                  <span>{formatPeso(total)}</span>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
       </main>
 
       {toast && (
