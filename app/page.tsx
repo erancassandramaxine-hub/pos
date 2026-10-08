@@ -1,16 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import CardPayment from "@/components/CardPayment";
 import Cart from "@/components/Cart";
+import CashPayment from "@/components/CashPayment";
 import OrderSummary from "@/components/OrderSummary";
+import PaymentMethod from "@/components/PaymentMethod";
 import ProductGrid from "@/components/ProductGrid";
+import QRPayment from "@/components/QRPayment";
 import { PRODUCTS } from "@/lib/products";
 import { formatPeso } from "@/lib/transaction";
-import type { CartItem, Product, Step, ToastState } from "@/lib/types";
+import type { CartItem, PaymentMethodId, Product, Step, ToastState } from "@/lib/types";
 
 const STEP_LABELS = ["Item Selection", "Order Summary", "Payment", "Complete"];
 
-const STEP_INDEX: Record<Step, number> = { select: 0, summary: 1 };
+const STEP_INDEX: Record<Step, number> = {
+  select: 0,
+  summary: 1,
+  payment: 2,
+  processing: 2,
+  success: 3,
+  receipt: 3,
+};
 
 const TOAST_STYLES: Record<ToastState["tone"], string> = {
   success: "bg-emerald-600",
@@ -64,6 +75,7 @@ function StepIndicator({ current }: { current: number }) {
 export default function Home() {
   const [step, setStep] = useState<Step>("select");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [methodId, setMethodId] = useState<PaymentMethodId | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -136,6 +148,25 @@ export default function Home() {
     setStep("select");
   };
 
+  const backToSummary = () => {
+    setMethodId(null);
+    setStep("summary");
+  };
+
+  const selectMethod = (id: PaymentMethodId) => {
+    setMethodId(id);
+  };
+
+  const confirmCashPayment = (amountPaid: number, change: number) => {
+    // Processing screen is wired up in the next commit.
+    showToast(`Cash accepted: ${formatPeso(amountPaid)} (change ${formatPeso(change)})`, "success");
+  };
+
+  const confirmCashlessPayment = () => {
+    // Processing screen is wired up in the next commit.
+    showToast("Payment accepted — processing coming soon", "success");
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="bg-indigo-600 px-4 py-4 text-white shadow-lg">
@@ -192,15 +223,21 @@ export default function Home() {
               )}
             </aside>
           </div>
-        ) : (
+        ) : step === "summary" ? (
           <OrderSummary
             items={cart}
             total={total}
             onBack={backToProducts}
-            onContinue={() =>
-              showToast("Payment is implemented in the next feature branch", "warning")
-            }
+            onContinue={() => setStep("payment")}
           />
+        ) : methodId === null ? (
+          <PaymentMethod total={total} onSelect={selectMethod} onBack={backToSummary} />
+        ) : methodId === "cash" ? (
+          <CashPayment total={total} onConfirm={confirmCashPayment} onBack={() => setMethodId(null)} />
+        ) : methodId === "qr" ? (
+          <QRPayment total={total} onConfirm={confirmCashlessPayment} onBack={() => setMethodId(null)} />
+        ) : (
+          <CardPayment total={total} onConfirm={confirmCashlessPayment} onBack={() => setMethodId(null)} />
         )}
       </main>
 
